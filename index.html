@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#23706A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ева">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%90%BE%3C/text%3E%3C/svg%3E">
+<title>Таблетки Евы</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one narrow column, phone-first — day strip, today's doses by time, courses, to-dos, warning signs */
+:root{
+  --bg:#F3F6F6; --surface:#FFFFFF; --line:#DCE4E4; --fg:#1B2626; --muted:#5E6E6E;
+  --accent:#23706A; --accent-soft:#DDEEEC;
+  --ok:#2E7D4F; --ok-soft:#E1F2E7; --bad:#B4382E; --bad-soft:#FBE6E3; --warn:#9A6400; --warn-soft:#FFF2D6;
+  --font:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111817; --surface:#18211F; --line:#2A3634; --fg:#E6EEEC; --muted:#93A4A1;
+  --accent:#5FC0B6; --accent-soft:#1D3533;
+  --ok:#6BCB8E; --ok-soft:#18301F; --bad:#F08A7E; --bad-soft:#3A1E1B; --warn:#E8B451; --warn-soft:#352A12; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111817; --surface:#18211F; --line:#2A3634; --fg:#E6EEEC; --muted:#93A4A1;
+  --accent:#5FC0B6; --accent-soft:#1D3533;
+  --ok:#6BCB8E; --ok-soft:#18301F; --bad:#F08A7E; --bad-soft:#3A1E1B; --warn:#E8B451; --warn-soft:#352A12; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px;line-height:1.45}
+.wrap{max-width:560px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:22px}
+h1{font-size:26px;font-weight:700;margin:0;letter-spacing:-.01em}
+h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px}
+.sub{color:var(--muted);font-size:14px;margin-top:2px}
+.num{font-variant-numeric:tabular-nums}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.ring{font-size:14px;color:var(--muted)} .ring b{font-size:22px;color:var(--fg)}
+.sync{font-size:12px;color:var(--muted)}
+.sync.err{color:var(--bad)}
+
+/* day strip */
+.days{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 8px;scroll-snap-type:x proximity;scrollbar-width:thin}
+.day{flex:0 0 auto;width:52px;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:12px;padding:6px 0 7px;text-align:center;cursor:pointer;font:inherit;scroll-snap-align:center}
+.day .w{font-size:11px;color:var(--muted);text-transform:uppercase}
+.day .d{font-size:17px;font-weight:600}
+.day .dot{width:8px;height:8px;border-radius:50%;margin:3px auto 0;background:var(--line)}
+.day.full .dot{background:var(--ok)} .day.miss .dot{background:var(--bad)} .day.part .dot{background:var(--warn)}
+.day.sel{border-color:var(--accent);background:var(--accent-soft)}
+.day.today .w{color:var(--accent);font-weight:700}
+.day:focus-visible,.dose:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* doses */
+.slot{display:flex;flex-direction:column;gap:8px}
+.slot-h{display:flex;align-items:center;gap:8px;font-weight:600}
+.slot-h input{font:inherit;font-size:14px;border:1px solid var(--line);border-radius:8px;padding:2px 6px;background:var(--surface);color:var(--fg)}
+.dose{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;cursor:pointer;user-select:none}
+.box{width:28px;height:28px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;color:transparent;font-weight:700}
+.dose .name{font-weight:600;min-width:0}
+.dose .amt{font-size:14px;color:var(--muted)}
+.dose .tag{font-size:12px;font-weight:600;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.dose.given{background:var(--ok-soft);border-color:transparent}
+.dose.given .box{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.dose.given .tag{color:var(--ok)}
+.dose.given .tag input{font:inherit;color:var(--ok);background:transparent;border:0;width:62px;padding:0;cursor:pointer}
+.dose.late{border-color:var(--bad);background:var(--bad-soft)}
+.dose.late .tag{background:var(--bad);color:var(--surface)}
+.dose.soon .tag{background:var(--warn-soft);color:var(--warn)}
+.hint{font-size:13px;color:var(--warn);background:var(--warn-soft);border-radius:10px;padding:8px 12px}
+.empty{color:var(--muted);font-size:14px}
+
+/* note */
+textarea{width:100%;min-height:64px;font:inherit;font-size:14px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface);color:var(--fg);resize:vertical}
+
+/* courses */
+.courses{display:flex;flex-direction:column;gap:10px}
+.course{display:grid;grid-template-columns:1fr auto;gap:2px 12px}
+.course .n{font-weight:600}
+.course .r{font-size:13px;color:var(--muted);text-align:right}
+.bar{grid-column:1/-1;height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:4px}
+.bar i{display:block;height:100%;background:var(--accent)}
+
+/* todos */
+.todo{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.todo:last-child{border-bottom:0}
+.todo input{width:18px;height:18px;margin-top:2px;accent-color:var(--accent)}
+.todo.done span{color:var(--muted);text-decoration:line-through}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.alarm{border-color:var(--bad)}
+.alarm ul{margin:6px 0 10px;padding-left:18px}
+.phones{display:flex;flex-wrap:wrap;gap:6px 14px;font-weight:600}
+.phones a{color:var(--accent);text-decoration:none}
+.foot{font-size:12px;color:var(--muted)}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="head">
+    <div>
+      <h1>Таблетки Евы</h1>
+      <div class="sub">Такса, 6 лет, 6,8 кг · ХСН, отит · курс с 03.11.2026</div>
+    </div>
+    <div class="ring num" id="ring"></div>
+  </div>
+
+  <div>
+    <div class="days" id="days" role="tablist" aria-label="Дни курса"></div>
+  </div>
+
+  <section>
+    <h2 id="dayTitle">Сегодня</h2>
+    <div id="doses" style="display:flex;flex-direction:column;gap:18px"></div>
+  </section>
+
+  <section>
+    <h2>Заметки за день</h2>
+    <textarea id="note" placeholder="Аппетит, дыхание, кашель, сколько гуляли, реакция на таблетки…"></textarea>
+  </section>
+
+  <section>
+    <h2>Курсы</h2>
+    <div class="card courses" id="courses"></div>
+  </section>
+
+  <section>
+    <h2>Что сделать</h2>
+    <div class="card" id="todos"></div>
+  </section>
+
+  <section>
+    <h2>Когда сразу в клинику</h2>
+    <div class="card alarm">
+      В заключении: при ухудшении, новых симптомах или если выздоровление затягивается — немедленный повторный приём. Для собаки с ХСН это, например:
+      <ul>
+        <li>частое или тяжёлое дыхание в покое и во сне</li>
+        <li>кашель, особенно ночью</li>
+        <li>посинение языка или дёсен</li>
+        <li>обмороки, падения, сильная слабость</li>
+        <li>отказ от еды, рвота</li>
+      </ul>
+      <div>SQ-lap, Минск, ул. Филимонова, 25Г, круглосуточно</div>
+      <div class="phones num"><span>+375 29 392-80-81</span><span>+375 29 670-31-98</span><span>+375 17 369-67-68</span></div>
+    </div>
+  </section>
+
+  <div class="foot" id="sync">Подключение…</div>
+</div>
+
+<script>
+const START = "2026-11-03";
+const MEDS = [
+  {id:"brevers", name:"Бреверс", amt:"1½ таблетки", days:30, slots:["m"], note:"1 таблетка на 4 кг, 30 дней"},
+  {id:"emicidin", name:"Эмицидин 15 мг", amt:"1 таблетка", days:21, slots:["m","e"], note:"2 раза в день, 3 недели"},
+  {id:"vero", name:"Верошпирон 25 мг", amt:"¼ таблетки", days:null, slots:["m"], note:"до корректировки после УЗИ сердца"},
+  {id:"vazosan", name:"Вазосан", amt:"¼ таблетки", days:30, slots:["m"], note:"минимум 30 дней, далее корректировка"},
+  {id:"otibiovet", name:"Отибиовет Ультра", amt:"3 капли в каждое ухо, ухо сначала протереть", days:12, slots:["m","d","e"], slotsFor:i => i<3 ? ["m","d","e"] : ["m","e"], freq:"3 раза в день 1–3 дни, дальше 2 раза", note:"по инструкции: после исчезновения симптомов ещё 2–3 дня, курс не дольше 12 дней"},
+];
+const TODOS = [
+  {id:"uzi", t:"Записаться на УЗИ сердца и кардиологический приём (врач Широкая Н.Б.)"},
+  {id:"adjust", t:"После УЗИ скорректировать назначения"},
+  {id:"ktmrt", t:"КТ/МРТ позвоночника — рекомендация рентгенолога"},
+  {id:"walks", t:"Прогулки медленные и спокойные"},
+];
+const SPAN = 30;
+const WD = ["Вс","Пн","Вт","Ср","Чт","Пт","Сб"];
+const MON = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+
+const pad = n => String(n).padStart(2,"0");
+const iso = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parse = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y,m-1,d); };
+const addDays = (s,n) => { const d = parse(s); d.setDate(d.getDate()+n); return iso(d); };
+const diff = (a,b) => Math.round((parse(b)-parse(a))/864e5);
+const nowHM = () => { const d = new Date(); return pad(d.getHours())+":"+pad(d.getMinutes()); };
+const todayISO = () => iso(new Date());
+
+let logs = {};        // date -> {doses:{key:{at}}, note}
+let config = {times:{m:"07:30", d:"13:00", e:"18:30"}, todos:{}};
+let selected = (() => { const t = todayISO(); const i = diff(START,t); return i<0 ? START : t; })();
+let store = null;
+
+function dosesFor(date){
+  const i = diff(START,date); if (i<0) return [];
+  const out = [];
+  for (const m of MEDS){
+    if (m.days!==null && i>=m.days) continue;
+    for (const s of (m.slotsFor ? m.slotsFor(i) : m.slots)) out.push({med:m, slot:s, key:m.id+"-"+s});
+  }
+  return out;
+}
+function dayStats(date){
+  const list = dosesFor(date), g = (logs[date]||{}).doses||{};
+  const given = list.filter(x=>g[x.key]).length;
+  return {total:list.length, given};
+}
+function minutes(hm){ const [h,m]=hm.split(":").map(Number); return h*60+m; }
+
+/* ---------- storage: /api/state (Vercel + Upstash), localStorage fallback ---------- */
+const local = {
+  read(){ try{ return JSON.parse(localStorage.getItem("eva-meds")||"null"); }catch(e){ return null; } },
+  write(s){ try{ localStorage.setItem("eva-meds", JSON.stringify(s)); }catch(e){} }
+};
+let server = false;     // true once /api/state answered
+let pending = 0;
+let chain = Promise.resolve();
+function writeKey(key, value){
+  local.write({logs, config});
+  if (!server) return;
+  pending++;
+  chain = chain.then(() => fetch("/api/state", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({key, value})})
+    .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); setSync("Сохранено. Отметки видны всем, у кого есть ссылка."); }))
+    .catch(e => setSync("Не сохранилось (" + e.message + "). Проверьте интернет и отметьте ещё раз.", true))
+    .finally(() => { pending--; });
+}
+function saveDay(date){ writeKey("log:"+date, logs[date] || {doses:{}, note:""}); }
+function saveConfig(){ writeKey("config", config); }
+function setSync(t, err){ const el = document.getElementById("sync"); el.textContent = t; el.className = "foot sync" + (err?" err":""); }
+
+/* ---------- render ---------- */
+function renderDays(){
+  const box = document.getElementById("days"), t = todayISO();
+  box.innerHTML = "";
+  for (let i=0;i<SPAN;i++){
+    const d = addDays(START,i), dt = parse(d), s = dayStats(d);
+    const b = document.createElement("button");
+    let cls = "day";
+    if (d===selected) cls += " sel";
+    if (d===t) cls += " today";
+    if (s.total && s.given===s.total) cls += " full";
+    else if (d < t && s.given < s.total) cls += " miss";
+    else if (s.given>0) cls += " part";
+    b.className = cls; b.setAttribute("role","tab"); b.setAttribute("aria-selected", d===selected);
+    b.innerHTML = `<div class="w">${d===t?"сег":WD[dt.getDay()]}</div><div class="d num">${dt.getDate()}</div><div class="dot"></div>`;
+    b.title = `${dt.getDate()} ${MON[dt.getMonth()]}: дано ${s.given} из ${s.total}`;
+    b.onclick = () => { selected = d; render(); };
+    box.appendChild(b);
+  }
+  const sel = box.querySelector(".sel"); if (sel) sel.scrollIntoView({block:"nearest", inline:"center"});
+}
+
+function renderDoses(){
+  const t = todayISO(), dt = parse(selected);
+  document.getElementById("dayTitle").textContent =
+    (selected===t ? "Сегодня, " : "") + dt.getDate()+" "+MON[dt.getMonth()] + " · день " + (diff(START,selected)+1);
+  const wrap = document.getElementById("doses"); wrap.innerHTML = "";
+  const list = dosesFor(selected), g = (logs[selected]||{}).doses||{};
+  if (!list.length){ wrap.innerHTML = '<div class="empty">На этот день назначений нет.</div>'; return; }
+  const nowM = minutes(nowHM());
+  for (const slot of ["m","d","e"]){
+    const items = list.filter(x=>x.slot===slot); if (!items.length) continue;
+    const sec = document.createElement("div"); sec.className = "slot";
+    const h = document.createElement("div"); h.className = "slot-h";
+    h.innerHTML = `<span>${{m:"Утро",d:"День",e:"Вечер"}[slot]}</span>`;
+    const ti = document.createElement("input"); ti.type="time"; ti.id="time-"+slot; ti.value=config.times[slot]; ti.setAttribute("aria-label","Время приёма");
+    ti.onchange = () => { if (ti.value){ config.times[slot]=ti.value; saveConfig(); render(); } };
+    h.appendChild(ti); sec.appendChild(h);
+    for (const x of items){
+      const rec = g[x.key];
+      const el = document.createElement("div"); el.className="dose"; el.tabIndex=0; el.setAttribute("role","checkbox"); el.setAttribute("aria-checked", !!rec);
+      let tag = "";
+      if (rec){
+        el.classList.add("given");
+        tag = `<span class="tag">дано в <input type="time" value="${rec.at}" aria-label="Время, когда дали"></span>`;
+      } else {
+        const due = minutes(config.times[slot]);
+        const first = selected===START;
+        const past = !first && (selected < t || (selected===t && nowM > due + 60));
+        const soon = !first && selected===t && nowM >= due - 30 && !past;
+        if (past){ el.classList.add("late"); tag = `<span class="tag">${selected<t?"пропущено":"просрочено"}</span>`; }
+        else if (soon){ el.classList.add("soon"); tag = `<span class="tag">пора</span>`; }
+        else if (selected===t || selected>t) tag = `<span class="tag num" style="color:var(--muted)">${config.times[slot]}</span>`;
+      }
+      el.innerHTML = `<div class="box">✓</div><div class="name">${x.med.name}<div class="amt">${x.med.amt}</div></div>${tag}`;
+      const toggle = () => {
+        logs[selected] = logs[selected] || {doses:{}, note:""};
+        logs[selected].doses = Object.assign({}, logs[selected].doses);
+        if (logs[selected].doses[x.key]) delete logs[selected].doses[x.key];
+        else logs[selected].doses[x.key] = {at: selected===t ? nowHM() : config.times[slot]};
+        saveDay(selected); render();
+      };
+      el.onclick = e => { if (e.target.tagName==="INPUT") return; toggle(); };
+      el.onkeydown = e => { if ((e.key===" "||e.key==="Enter") && e.target===el){ e.preventDefault(); toggle(); } };
+      const tin = el.querySelector(".tag input");
+      if (tin) tin.onchange = () => { if (!tin.value) return; logs[selected].doses = Object.assign({}, logs[selected].doses, {[x.key]:{at:tin.value}}); saveDay(selected); };
+      sec.appendChild(el);
+    }
+    wrap.appendChild(sec);
+  }
+  if (selected===START){
+    const hint = document.createElement("div"); hint.className="hint";
+    hint.textContent = "Сегодня таблетки дали в 16:00, первые капли около 17:00 — они записаны в «Утро». Вечером отметьте вторую дозу Эмицидина и капли. С завтра обычный график.";
+    wrap.appendChild(hint);
+  }
+}
+
+function renderCourses(){
+  const t = todayISO(), box = document.getElementById("courses"); box.innerHTML = "";
+  for (const m of MEDS){
+    const day = Math.max(0, Math.min(diff(START,t)+1, m.days||999));
+    let right, pct;
+    if (m.days){
+      const end = parse(addDays(START, m.days-1));
+      right = `день ${day} из ${m.days} · до ${end.getDate()} ${MON[end.getMonth()]}`;
+      pct = Math.min(100, day/m.days*100);
+    } else { right = `день ${diff(START,t)+1}`; pct = 0; }
+    const el = document.createElement("div"); el.className="course";
+    el.innerHTML = `<div class="n">${m.name} <span class="amt" style="font-weight:400;color:var(--muted);font-size:13px">· ${m.amt}, ${m.freq || (m.slots.length===2?"2 раза в день":"1 раз в день")}</span></div><div class="r num">${right}</div>
+      <div class="amt" style="grid-column:1/-1;font-size:13px;color:var(--muted)">${m.note}</div>
+      ${m.days?`<div class="bar"><i style="width:${pct}%"></i></div>`:""}`;
+    box.appendChild(el);
+  }
+}
+
+function renderTodos(){
+  const box = document.getElementById("todos"); box.innerHTML = "";
+  for (const td of TODOS){
+    const done = !!(config.todos||{})[td.id];
+    const l = document.createElement("label"); l.className = "todo"+(done?" done":"");
+    l.innerHTML = `<input type="checkbox" id="todo-${td.id}" ${done?"checked":""}><span>${td.t}</span>`;
+    l.querySelector("input").onchange = e => { config.todos = Object.assign({}, config.todos, {[td.id]: e.target.checked}); saveConfig(); renderTodos(); };
+    box.appendChild(l);
+  }
+}
+
+function renderRing(){
+  const t = todayISO(), s = dayStats(t);
+  document.getElementById("ring").innerHTML = s.total ? `сегодня <b>${s.given}/${s.total}</b>` : "";
+}
+
+let noteFocus = false;
+function renderNote(){
+  const n = document.getElementById("note");
+  if (!noteFocus) n.value = (logs[selected]||{}).note || "";
+}
+function render(){ renderDays(); renderDoses(); renderNote(); renderCourses(); renderTodos(); renderRing(); }
+
+const note = document.getElementById("note");
+let noteTimer;
+note.onfocus = () => noteFocus = true;
+note.onblur = () => { noteFocus = false; flushNote(); };
+note.oninput = () => { clearTimeout(noteTimer); noteTimer = setTimeout(flushNote, 900); };
+function flushNote(){
+  clearTimeout(noteTimer);
+  const cur = (logs[selected]||{}).note || "";
+  if (note.value === cur) return;
+  logs[selected] = Object.assign({doses:{}}, logs[selected], {note: note.value});
+  saveDay(selected);
+}
+
+setInterval(() => { if (document.activeElement && document.activeElement.type==="time") return; renderDoses(); renderRing(); }, 60000);
+
+/* ---------- boot ---------- */
+const saved = local.read();
+if (saved){ logs = saved.logs || {}; config = Object.assign(config, saved.config||{}); }
+render();
+
+function apply(state){
+  const next = {};
+  for (const k in state){
+    if (k.startsWith("log:")) next[k.slice(4)] = state[k];
+    else if (k === "config") config = {times: Object.assign({m:"07:30",d:"13:00",e:"18:30"}, state[k].times||{}), todos: Object.assign({}, state[k].todos||{})};
+  }
+  logs = next;
+  local.write({logs, config});
+  if (document.activeElement && document.activeElement.type === "time") return;
+  render();
+}
+async function pull(){
+  if (pending) return;
+  try{
+    const r = await fetch("/api/state", {cache:"no-store"});
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const state = await r.json();
+    if (pending) return;
+    server = true;
+    apply(state);
+    setSync("Отметки сохраняются и видны всем, у кого есть ссылка.");
+  }catch(e){
+    if (server) setSync("Нет связи — показаны последние сохранённые отметки.", true);
+    else setSync("Сервер хранения не подключён: отметки сохраняются только в этом браузере.", true);
+  }
+}
+pull();
+setInterval(pull, 15000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) pull(); });
+</script>
+
+</body>
+</html>
