@@ -13,6 +13,12 @@ const SEED = {
   "config": {times:{m:"07:30", d:"13:00", e:"18:30"}, todos:{uzi:true}},
 };
 
+// Разово дописать то, что давали 03.11–08.11 (уже стоящие отметки не трогаются)
+const MIGR = "migr:2026-11-09";
+const BACKFILL = {"2026-11-03": ["emicidin-e"]};
+for (const d of ["04","05","06","07","08"]) BACKFILL["2026-11-" + d] = ["brevers-m", "emicidin-m", "emicidin-e"];
+for (const d of ["07","08"]) BACKFILL["2026-11-" + d].push("cardiosafe-m", "cardiosafe-e", "vero-m");
+
 let tcp = null;
 async function redis(cmd){
   if (!(URL_ && TOKEN) && TCP_URL){
@@ -32,13 +38,25 @@ module.exports = async (req, res) => {
   try{
     if (req.method === "GET"){
       let arr = await redis(["HGETALL", HASH]);
-      if (!arr || !arr.length){
-        const cmd = ["HSET", HASH]; for (const k in SEED) cmd.push(k, JSON.stringify(SEED[k]));
-        await redis(cmd);
-        return res.status(200).json(SEED);
-      }
       const out = {};
-      for (let i = 0; i < arr.length; i += 2){ try{ out[arr[i]] = JSON.parse(arr[i+1]); }catch(e){} }
+      if (!arr || !arr.length){
+        const cmd = ["HSET", HASH]; for (const k in SEED){ cmd.push(k, JSON.stringify(SEED[k])); out[k] = SEED[k]; }
+        await redis(cmd);
+      } else {
+        for (let i = 0; i < arr.length; i += 2){ try{ out[arr[i]] = JSON.parse(arr[i+1]); }catch(e){} }
+      }
+      if (!out[MIGR]){
+        const cmd = ["HSET", HASH, MIGR, JSON.stringify({at: new Date().toISOString()})];
+        for (const date in BACKFILL){
+          const key = "log:" + date, cur = out[key] || {doses:{}, note:""};
+          const doses = Object.assign({}, cur.doses);
+          for (const k of BACKFILL[date]) if (!doses[k]) doses[k] = {at: k.endsWith("-e") ? "18:30" : "07:30", back: true};
+          out[key] = Object.assign({}, cur, {doses});
+          cmd.push(key, JSON.stringify(out[key]));
+        }
+        await redis(cmd);
+        out[MIGR] = true;
+      }
       return res.status(200).json(out);
     }
     if (req.method === "POST"){
